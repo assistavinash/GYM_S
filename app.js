@@ -14,7 +14,9 @@ app.options("*", cors());
 
 app.use(express.json()); // ✅ Required to read req.body JSON
 
-
+app.get("/", (req, res) => {
+  res.send("Backend is running");
+});
 const authRoutes = require("./routes/authRoutes");
 const passwordResetRoutes = require("./routes/passwordResetRoutes");
 const adminRoutes = require("./routes/adminRoutes");
