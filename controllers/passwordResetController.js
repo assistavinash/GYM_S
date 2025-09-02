@@ -40,13 +40,17 @@ exports.requestReset = async (req, res) => {
             attempts: 0
         });
 
-        // For testing: Send OTP in response
-        res.status(200).json({ 
-            message: `Test Mode: Your OTP is ${otp}`,
-            otp: otp, // Sending OTP in response for testing
-            maskedIdentifier: identifier
-        });
-        return;
+
+            // Send OTP via email if method is email
+            if (method === 'email') {
+                const { sendOTPEmail } = require('../utils/email');
+                try {
+                    await sendOTPEmail(email, otp);
+                } catch (err) {
+                    console.error('Error sending OTP email:', err);
+                    return res.status(500).json({ message: 'Failed to send OTP email' });
+                }
+            }
 
         // Mask the identifier for privacy
         let maskedIdentifier;
