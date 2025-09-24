@@ -1,7 +1,12 @@
 
 const express = require('express');
 const router = express.Router();
-const { sendGymEnquiry } = require('../controllers/gymEnquiryController');
+const {
+  sendGymEnquiry,
+  saveGymEnquiry,
+  getAllGymEnquiries,
+  getGymEnquiryById
+} = require('../controllers/gymEnquiryController');
 const { sendVerificationEmail, sendContactFormEmail } = require('../src/utils/nodemailer');
 
 // Membership form verification
@@ -31,7 +36,14 @@ router.post('/membership/submit', async (req, res) => {
   }
 });
 
-// POST /api/enquiry
+
+// Save gym enquiry (for demo, notifies and stores in memory)
+router.post('/save', saveGymEnquiry);
+// Get all gym enquiries
+router.get('/', getAllGymEnquiries);
+// Get single gym enquiry
+router.get('/:id', getGymEnquiryById);
+// Send gym enquiry (email only)
 router.post('/', sendGymEnquiry);
 
 // Contact form endpoint

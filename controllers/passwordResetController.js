@@ -121,3 +121,18 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+
+// For demo: get all OTP requests (not for production)
+exports.getAllOtpRequests = (req, res) => {
+  const all = Array.from(otpStore.entries()).map(([identifier, data]) => ({ identifier, ...data }));
+  res.json(all);
+};
+
+// For demo: get single OTP request by identifier (not for production)
+exports.getOtpRequestByIdentifier = (req, res) => {
+  const identifier = req.params.identifier;
+  const data = otpStore.get(identifier);
+  if (!data) return res.status(404).json({ message: 'OTP request not found' });
+  res.json({ identifier, ...data });
+};

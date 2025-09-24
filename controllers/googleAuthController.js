@@ -13,54 +13,64 @@ exports.googleLogin = async (req, res) => {
         // Verify the Google token
         const ticket = await client.verifyIdToken({
             idToken: credential,
-            audience: process.env.GOOGLE_CLIENT_ID
+            audience: process.env.GOOGLE_CLIENT_ID,
         });
 
         const payload = ticket.getPayload();
         const { email, name } = payload;
 
-        // Check if user exists
-        let user = await User.findOne({ email });
+        // Find existing user by email
+        const user = await User.findOne({ email });
 
+        // Block new Google registrations: require pre-registered account
         if (!user) {
-            // Create new user if doesn't exist
-            user = await User.create({
-                email,
-                name,
-                role: 'user', // Default role
-                isVerified: true, // Google users are automatically verified
-                authProvider: 'google'
-                // No password or phone required for Google users
+            return res.status(403).json({
+                message:
+                    'Please register with email/password first and verify your email to enable Google login.',
             });
         }
 
-        // Generate JWT token
+        // Require verified email before allowing Google login
+        if (!user.isVerified) {
+            return res.status(403).json({
+                message: 'Please verify your email to use Google login.',
+            });
+        }
+
+        // Issue JWT and set httpOnly cookie (consistent with normal login)
         const token = jwt.sign(
             { id: user._id, role: user.role },
             process.env.JWT_SECRET,
-            { expiresIn: '24h' }
+            { expiresIn: '1d' }
         );
 
-        res.json({
-            token,
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: false, // set true behind HTTPS/proxy
+            sameSite: 'lax',
+            maxAge: 24 * 60 * 60 * 1000,
+            path: '/',
+        });
+
+        return res.json({
+            message: 'Google login successful',
             user: {
                 id: user._id,
                 name: user.name,
                 email: user.email,
-                role: user.role
-            }
+                role: user.role,
+            },
         });
-
     } catch (error) {
         console.error('Google auth error:', error);
         console.error('Error details:', {
             name: error.name,
             message: error.message,
-            stack: error.stack
+            stack: error.stack,
         });
-        res.status(401).json({ 
+        return res.status(401).json({
             message: 'Google authentication failed',
-            error: error.message 
+            error: error.message,
         });
     }
 };

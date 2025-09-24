@@ -18,4 +18,14 @@ function sendOTPEmail(to, otp) {
     return transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendOTPEmail };
+function sendVerificationEmail(to, code) {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to,
+        subject: 'Verify your PowerPoint Gym account',
+        text: `Your email verification code is: ${code}. This code will expire in 10 minutes.`
+    };
+    return transporter.sendMail(mailOptions);
+}
+
+module.exports = { sendOTPEmail, sendVerificationEmail };
