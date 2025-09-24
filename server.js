@@ -7,6 +7,10 @@ const PORT = process.env.PORT || 3000;
 // Connect to MongoDB
 connectDB();
 
+app.get('/', (req, res) => {
+  res.send('Welcome to the Gym Management System API');
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
