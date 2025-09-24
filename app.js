@@ -4,20 +4,16 @@ const cookieParser = require("cookie-parser");
 
 const app = express();
 
-// ✅ CORS configuration (keep it simple)
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
-app.use(
-  cors({
-    origin: FRONTEND_URL, // ⚠️ ek hi frontend origin rakho
-    credentials: true, // allow cookies
-  })
-);
+// CORS configuration
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json()); // ✅ Required to read req.body JSON
 
-// ✅ Middleware
-app.use(express.json());
-app.use(cookieParser());
 
-// ✅ Routes import
 const authRoutes = require("./routes/authRoutes");
 const passwordResetRoutes = require("./routes/passwordResetRoutes");
 const adminRoutes = require("./routes/adminRoutes");
