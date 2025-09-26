@@ -5,7 +5,8 @@ const {
   sendGymEnquiry,
   saveGymEnquiry,
   getAllGymEnquiries,
-  getGymEnquiryById
+  getGymEnquiryById,
+  verifyEnquiryOTP
 } = require('../controllers/gymEnquiryController');
 const { sendVerificationEmail, sendContactFormEmail } = require('../src/utils/nodemailer');
 
@@ -45,6 +46,8 @@ router.get('/', getAllGymEnquiries);
 router.get('/:id', getGymEnquiryById);
 // Send gym enquiry (email only)
 router.post('/', sendGymEnquiry);
+// Verify OTP for gym enquiry
+router.post('/verify-otp', verifyEnquiryOTP);
 
 // Contact form endpoint
 router.post('/contact', async (req, res) => {

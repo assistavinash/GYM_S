@@ -96,76 +96,22 @@ async function getUser(req, res) {
 // Login controller
 async function login(req, res) {
   try {
-    let { email, password } = req.body;
-    // Normalize inputs
-    email = (email || '').trim().toLowerCase();
-    password = (password || '').trim();
-
+    const { email, password } = req.body;
     if (!email || !password) {
-      console.log('[LOGIN FAIL] Missing fields', { emailPresent: !!email, passwordPresent: !!password });
       return res.status(400).json({ message: 'Email and password are required' });
     }
-
-    console.log('[LOGIN ATTEMPT]', { email });
-
     const user = await User.findOne({ email });
     if (!user) {
-      console.log('[LOGIN FAIL] User not found:', email);
       return res.status(400).json({ message: 'User not found' });
     }
     if (!user.isVerified) {
-      console.log('[LOGIN FAIL] Email not verified:', email);
       return res.status(403).json({ message: 'Please verify your email before logging in' });
     }
     if (!user.password) {
-      console.log('[LOGIN FAIL] No local password (Google account):', email);
       return res.status(400).json({ message: 'Please login with Google' });
     }
-    let isMatch = false;
-    // Normal bcrypt comparison
-    try {
-      isMatch = await bcrypt.compare(password, user.password);
-    } catch (cmpErr) {
-      console.error('Bcrypt compare error (possibly malformed hash):', cmpErr);
-    }
-
-    // Legacy fallback: if stored password not hashed (does not start with $2)
-    if (!isMatch && !user.password.startsWith('$2')) {
-      if (user.password === password) {
-        // Upgrade legacy plain password -> rely on pre-save hook to hash ONCE
-        user.password = password; // assign plain; pre('save') will hash
-        await user.save();
-        isMatch = true;
-        console.log('Upgraded legacy plain-text password for user (single-hash applied):', email);
-      }
-    }
-
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      // Optional dev-only auto remediation: inline password reset if caller sends autoFix flag
-      if (process.env.NODE_ENV !== 'production' && req.body && req.body.autoFix === true) {
-        console.log('[LOGIN AUTO-FIX] Resetting password inline for:', email);
-        user.password = password; // plain, pre-save hook will hash
-        await user.save();
-        isMatch = true;
-      }
-    }
-
-    if (!isMatch) {
-      console.log('[LOGIN FAIL] Invalid credentials for:', email);
-      if (process.env.NODE_ENV !== 'production') {
-        return res.status(400).json({
-          message: 'Invalid credentials',
-          debug: {
-            userFound: true,
-            isVerified: user.isVerified,
-            hasPassword: !!user.password,
-            passwordIsBcrypt: !!user.password && user.password.startsWith('$2'),
-            autoFixAvailable: true,
-            usage: 'Send { email, password, autoFix:true } once to force-set password in dev',
-            note: 'Do NOT enable autoFix in production'
-          }
-        });
-      }
       return res.status(400).json({ message: 'Invalid credentials' });
     }
   const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
@@ -176,7 +122,7 @@ async function login(req, res) {
       maxAge: 24 * 60 * 60 * 1000, // 1 day
       path: '/'
     });
-    console.log('[LOGIN OK]', { email, role: user.role });
+    console.log('User logged in:', { email, role: user.role });
     res.status(200).json({
       message: 'Login successful',
       user: {
@@ -277,49 +223,4 @@ module.exports = {
   getUser,
   verifyEmail,
   resendVerification,
-};
-
-// -------- DEV DEBUG HELPERS (Do NOT enable in production) -------- //
-// Exposed separately (not exported above) to avoid accidental import elsewhere
-module.exports.__dev = {
-  async debugUserMeta(req, res) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(403).json({ message: 'Not allowed in production' });
-    }
-    const email = (req.query.email || '').trim().toLowerCase();
-    if (!email) return res.status(400).json({ message: 'email query required' });
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    return res.json({
-      email: user.email,
-      role: user.role,
-      isVerified: user.isVerified,
-      authProvider: user.authProvider,
-      hasPassword: !!user.password,
-      passwordIsBcrypt: !!user.password && user.password.startsWith('$2'),
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    });
-  },
-  async debugSetPassword(req, res) {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(403).json({ message: 'Not allowed in production' });
-    }
-    const { email, newPassword, verify } = req.body || {};
-    if (!email || !newPassword) {
-      return res.status(400).json({ message: 'email and newPassword required' });
-    }
-    const user = await User.findOne({ email: email.trim().toLowerCase() });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-  // Set plain new password; pre-save hook will hash exactly once. Avoid double-hash.
-  user.password = newPassword.trim();
-    if (verify === true && !user.isVerified) user.isVerified = true;
-    await user.save();
-    return res.json({
-      message: 'Password set successfully',
-      email: user.email,
-      isVerified: user.isVerified,
-      passwordIsBcrypt: user.password.startsWith('$2')
-    });
-  }
 };
